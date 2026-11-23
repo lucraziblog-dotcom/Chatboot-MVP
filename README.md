@@ -39,16 +39,19 @@ O cadastro cria uma agência e seu primeiro usuário administrador em uma transa
 
 ## Publicação recomendada para o MVP
 
-Uma opção inicial é **Vercel para o Next.js + Neon para PostgreSQL**: a Vercel simplifica o deploy do App Router e o Neon oferece PostgreSQL gerenciado.
+Como o projeto já está sendo criado na Vercel, **Prisma Postgres** é a opção mais simples para o primeiro deploy: a integração cria o banco e configura `DATABASE_URL` (conexão direta, usada pelas migrações) e `DATABASE_URL_POOLED` (pool, usado pela aplicação). O cliente em `src/lib/db.ts` prioriza a URL pooled. Escolha São Paulo, se disponível.
 
-1. Crie o banco no Neon na região mais próxima dos usuários e da aplicação.
-2. Na Vercel, importe este repositório e configure `DATABASE_URL` com a conexão pooled do Neon e `DIRECT_DATABASE_URL` com a conexão direta.
-3. Configure `NEXTAUTH_URL` com o domínio público e `NEXTAUTH_SECRET` com um segredo exclusivo. Mantenha todas essas variáveis fora do Git e não as envie pelo chat.
-4. Antes de liberar tráfego, aplique a migração inicial com `npm run db:migrate:deploy`.
+Como alternativa, mantenha o Neon já criado: configure `DATABASE_URL` com a URL pooled e `DIRECT_DATABASE_URL` com a URL direta. Não misture provedores; ao trocar de Neon para Prisma Postgres, remova `DIRECT_DATABASE_URL` do Neon.
+
+A oferta Prisma Postgres exibida na Vercel mostra 2 GB e 100 mil operações/mês, contra 1 GB no plano gratuito Neon consultado. Isso dá mais espaço, mas os limites não são diretamente comparáveis: a página pública do Prisma lista 200 mil operações no Free. Confirme o limite efetivo no painel antes de escolher. Uma operação equivale a uma consulta ao banco; monitore o consumo conforme crescer o número de leads e conversas.
+
+1. Instale a integração Prisma Postgres no projeto Vercel, ou decida manter o Neon — não configure ambos como bancos diferentes para a mesma aplicação.
+2. Configure `NEXTAUTH_URL` com o domínio público e `NEXTAUTH_SECRET` com um segredo exclusivo. Mantenha essas variáveis fora do Git e não as envie pelo chat.
+3. Antes do primeiro uso, aplique a migração inicial com `npm run db:migrate:deploy`, usando as variáveis do banco direto escolhido.
 
 Uma opção de segredo pode ser gerada localmente com `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`.
 
-Como alternativa mais integrada, a aplicação e o PostgreSQL podem ficar no Render; isso também facilita adicionar um worker separado quando o processamento de mensagens exigir filas. Para WhatsApp/IA em produção, planeje processamento assíncrono, limites de conexão e rate limiting distribuído. Ainda não há deploy configurado: publicação exige contas, URLs e segredos fornecidos pelo responsável.
+Como outra alternativa, a aplicação e o PostgreSQL podem ficar no Render; isso facilita adicionar um worker separado quando o processamento de mensagens exigir filas. Para WhatsApp/IA em produção, planeje processamento assíncrono, limites de conexão e rate limiting distribuído. Ainda não há deploy configurado: publicação exige URLs e segredos fornecidos pelo responsável.
 
 O cadastro público ainda não tem verificação de e-mail nem proteção distribuída contra abuso; adicione esses controles antes de divulgar o endpoint de criação de contas. Também valide requisitos de LGPD, retenção e recuperação de senha antes de aceitar dados reais.
 
