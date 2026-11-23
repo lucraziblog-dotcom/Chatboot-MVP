@@ -26,6 +26,7 @@ const travelReplySchema = z.object({
 
 const responseSchema = z.object({
   choices: z.array(z.object({
+    finish_reason: z.string().nullable().optional(),
     message: z.object({ content: z.string().nullable() }),
   })).min(1),
 });
@@ -54,6 +55,26 @@ const jsonSchema = {
 };
 
 export type TravelReply = z.infer<typeof travelReplySchema>;
+
+function parseAssistantJson(content: string): unknown {
+  let candidate = content.trim();
+  const fencedJson = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(candidate);
+  if (fencedJson) candidate = fencedJson[1].trim();
+
+  try {
+    return JSON.parse(candidate);
+  } catch {
+    const start = candidate.indexOf("{");
+    const end = candidate.lastIndexOf("}");
+    if (start < 0 || end <= start) throw new Error("OpenAI API returned malformed JSON.");
+
+    try {
+      return JSON.parse(candidate.slice(start, end + 1));
+    } catch {
+      throw new Error("OpenAI API returned malformed JSON.");
+    }
+  }
+}
 
 function getChatCompletionsUrl() {
   const baseUrl = process.env.OPENAI_BASE_URL?.trim() || "https://api.openai.com/v1";
@@ -114,7 +135,7 @@ export async function generateTravelReply({
     body: JSON.stringify({
       model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
       temperature: 0.3,
-      max_tokens: 500,
+      max_tokens: 1000,
       response_format: {
         type: "json_schema",
         json_schema: {
@@ -141,16 +162,15 @@ export async function generateTravelReply({
   const payload = responseSchema.safeParse(await response.json());
   if (!payload.success) throw new Error("OpenAI API returned an invalid response.");
 
-  const content = payload.data.choices[0].message.content;
-  if (!content) throw new Error("OpenAI API returned an empty response.");
-
-  let decoded: unknown;
-  try {
-    decoded = JSON.parse(content);
-  } catch {
-    throw new Error("OpenAI API returned malformed JSON.");
+  const choice = payload.data.choices[0];
+  if (choice.finish_reason?.toLowerCase() === "length" || choice.finish_reason?.toLowerCase() === "max_tokens") {
+    throw new Error("OpenAI API response exceeded the output token limit.");
   }
 
+  const content = choice.message.content;
+  if (!content) throw new Error("OpenAI API returned an empty response.");
+
+  const decoded = parseAssistantJson(content);
   const result = travelReplySchema.safeParse(decoded);
   if (!result.success) throw new Error("OpenAI response did not match the travel qualification format.");
   return result.data;
