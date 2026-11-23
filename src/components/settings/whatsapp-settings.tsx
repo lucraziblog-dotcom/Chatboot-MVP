@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Copy, LoaderCircle, MessageCircle, Save, ShieldCheck } from "lucide-react";
+import { Check, Copy, LoaderCircle, MessageCircle, Save, ShieldCheck, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 
 type SettingsResponse = {
@@ -13,6 +13,12 @@ type SettingsResponse = {
   };
   readiness: { openAI: boolean; webhook: boolean; encryption: boolean };
   canManage: boolean;
+};
+
+type AiTestResult = {
+  model: string;
+  reply: string;
+  segment: string;
 };
 
 export function WhatsAppSettings({ canManage }: { canManage: boolean }) {
@@ -34,6 +40,8 @@ export function WhatsAppSettings({ canManage }: { canManage: boolean }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [copied, setCopied] = useState(false);
+  const [testingAi, setTestingAi] = useState(false);
+  const [aiTestResult, setAiTestResult] = useState<AiTestResult | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -82,6 +90,24 @@ export function WhatsAppSettings({ canManage }: { canManage: boolean }) {
     await navigator.clipboard.writeText(`${window.location.origin}/api/whatsapp/webhook`);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1800);
+  }
+
+  async function testAi() {
+    setTestingAi(true);
+    setError("");
+    setAiTestResult(null);
+    try {
+      const response = await fetch("/api/settings/whatsapp/test-ai", { method: "POST" });
+      const result = await response.json() as AiTestResult & { error?: string };
+      if (!response.ok || !result.reply) {
+        throw new Error(result.error ?? "Não foi possível testar a IA.");
+      }
+      setAiTestResult(result);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Não foi possível testar a IA.");
+    } finally {
+      setTestingAi(false);
+    }
   }
 
   if (loading) {
@@ -172,9 +198,28 @@ export function WhatsAppSettings({ canManage }: { canManage: boolean }) {
             </label>
 
             <div className="settings-readiness" aria-label="Pré-requisitos de integração">
-              <ReadinessItem ready={readiness.openAI} label="OpenAI configurada" />
+              <ReadinessItem ready={readiness.openAI} label="Provedor de IA configurado" />
               <ReadinessItem ready={readiness.webhook} label="Webhook da Meta configurado" />
               <ReadinessItem ready={readiness.encryption} label="Criptografia pronta" />
+            </div>
+
+            <div className="settings-ai-test">
+              <button
+                className="button button-secondary"
+                type="button"
+                onClick={testAi}
+                disabled={!readiness.openAI || testingAi}
+              >
+                {testingAi ? <LoaderCircle className="spin" size={16} /> : <Sparkles size={16} />}
+                {testingAi ? "Testando..." : "Testar IA sem enviar WhatsApp"}
+              </button>
+              {aiTestResult && (
+                <div className="settings-test-result" role="status">
+                  <strong>Resposta de teste ({aiTestResult.model})</strong>
+                  <p>{aiTestResult.reply}</p>
+                  <small>Segmento detectado: {aiTestResult.segment}</small>
+                </div>
+              )}
             </div>
 
             {error && <p className="form-error" role="alert">{error}</p>}
