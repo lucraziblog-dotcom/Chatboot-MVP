@@ -1,0 +1,197 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AgencyRole {
+  OWNER
+  ADMIN
+  CONSULTANT
+}
+
+enum LeadStatus {
+  NEW
+  QUALIFYING
+  WAITING_HUMAN
+  IN_PROGRESS
+  CONVERTED
+  LOST
+}
+
+enum TourismSegment {
+  AIR
+  EXCURSION
+  RECEPTIVE
+  UNDEFINED
+}
+
+enum ConversationStatus {
+  BOT
+  HUMAN
+  CLOSED
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+  INTERNAL
+}
+
+model User {
+  id           String       @id @default(cuid())
+  name         String
+  email        String       @unique
+  passwordHash String
+  memberships  Membership[]
+  auditLogs    AuditLog[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  agencyId    String
+  agency      Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  actorUserId String?
+  actor       User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  action      String
+  entityType  String
+  entityId    String
+  payload     Json?
+  createdAt   DateTime @default(now())
+
+  @@index([agencyId, createdAt(sort: Desc)])
+  @@index([agencyId, entityType, entityId])
+}
+
+model Agency {
+  id            String          @id @default(cuid())
+  name          String
+  slug          String          @unique
+  timezone      String          @default("America/Sao_Paulo")
+  memberships   Membership[]
+  leads         Lead[]
+  conversations Conversation[]
+  messages      Message[]
+  services      AgencyService[]
+  faqs          FAQ[]
+  auditLogs     AuditLog[]
+  botSettings   BotSettings?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([name])
+}
+
+model Membership {
+  id        String     @id @default(cuid())
+  agencyId  String
+  userId    String
+  role      AgencyRole @default(CONSULTANT)
+  agency    Agency     @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+
+  @@unique([agencyId, userId])
+  @@index([userId])
+}
+
+model Lead {
+  id             String         @id @default(cuid())
+  agencyId       String
+  agency         Agency         @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  name           String
+  phone          String
+  email          String?
+  segment        TourismSegment @default(UNDEFINED)
+  status         LeadStatus     @default(NEW)
+  serviceSummary String?
+  qualification  Json?
+  notes          String?
+  conversations  Conversation[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([agencyId, id])
+  @@index([agencyId, status, updatedAt(sort: Desc)])
+  @@index([agencyId, segment, updatedAt(sort: Desc)])
+  @@index([agencyId, phone])
+}
+
+model Conversation {
+  id            String             @id @default(cuid())
+  agencyId      String
+  agency        Agency             @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  leadId        String?
+  lead          Lead?              @relation(fields: [agencyId, leadId], references: [agencyId, id])
+  status        ConversationStatus @default(BOT)
+  channel       String             @default("WHATSAPP")
+  customerPhone String
+  customerName  String?
+  lastMessageAt DateTime           @default(now())
+  messages      Message[]
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@unique([agencyId, id])
+  @@index([agencyId, status, lastMessageAt(sort: Desc)])
+  @@index([agencyId, customerPhone])
+}
+
+model Message {
+  id                String           @id @default(cuid())
+  agencyId          String
+  agency            Agency           @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  conversationId    String
+  conversation      Conversation     @relation(fields: [agencyId, conversationId], references: [agencyId, id], onDelete: Cascade)
+  externalMessageId String?
+  direction         MessageDirection
+  content           String
+  createdAt         DateTime         @default(now())
+
+  @@unique([agencyId, externalMessageId])
+  @@index([agencyId, conversationId, createdAt])
+}
+
+model AgencyService {
+  id          String         @id @default(cuid())
+  agencyId    String
+  agency      Agency         @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  segment     TourismSegment
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([agencyId, isActive, segment])
+}
+
+model FAQ {
+  id        String   @id @default(cuid())
+  agencyId  String
+  agency    Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  question  String
+  answer    String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agencyId, isActive])
+}
+
+model BotSettings {
+  id               String   @id @default(cuid())
+  agencyId         String   @unique
+  agency           Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  instructions     String   @default("")
+  openingHours     Json?
+  handoffMessage   String   @default("Vou encaminhar você para um consultor da nossa equipe.")
+  autoReplyEnabled Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
