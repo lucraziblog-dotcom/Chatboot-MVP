@@ -8,12 +8,12 @@ import { Compass, LayoutDashboard, MessageCircle, Plane, Settings2, UsersRound, 
 const mainLinks = [
   { href: "/dashboard", label: "Visão geral", icon: LayoutDashboard },
   { href: "/leads", label: "Leads e CRM", icon: UsersRound },
+  { href: "/settings", label: "WhatsApp e IA", icon: Settings2 },
 ];
 
 const futureLinks = [
   { label: "Conversas", icon: MessageCircle },
   { label: "Serviços turísticos", icon: Plane },
-  { label: "Configurações da IA", icon: Sparkles },
 ];
 
 export function AppSidebar({ agencyName, userName, role }: { agencyName: string; userName: string; role: string }) {
@@ -34,7 +34,7 @@ export function AppSidebar({ agencyName, userName, role }: { agencyName: string;
       <div className="nav-section-label">MENU PRINCIPAL</div>
       <nav className="sidebar-nav" aria-label="Navegação principal">
         {mainLinks.map((item) => {
-          const active = pathname === item.href || (item.href === "/leads" && pathname.startsWith("/leads"));
+          const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`));
           return <Link key={item.href} href={item.href} className={`nav-link ${active ? "active" : ""}`}><item.icon size={18} /><span>{item.label}</span>{item.href === "/leads" && <span className="nav-dot" />}</Link>;
         })}
       </nav>
@@ -46,7 +46,7 @@ export function AppSidebar({ agencyName, userName, role }: { agencyName: string;
 
       <div className="sidebar-bottom">
         <div className="sidebar-tip"><span><Sparkles size={15} /></span><strong>Feito para turismo</strong><p>Um atendimento mais organizado para cada tipo de viagem.</p></div>
-        <Link href="/dashboard" className="nav-link nav-settings"><Settings2 size={18} /><span>Preferências</span></Link>
+        <Link href="/settings" className="nav-link nav-settings"><Settings2 size={18} /><span>Preferências</span></Link>
         <div className="user-card">
           <span className="user-avatar">{userName.trim().charAt(0).toUpperCase()}</span>
           <span className="user-info"><strong>{userName}</strong><small>{role === "OWNER" ? "Proprietário" : role === "ADMIN" ? "Administrador" : "Consultor"}</small></span>

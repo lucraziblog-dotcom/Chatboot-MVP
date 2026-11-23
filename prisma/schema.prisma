@@ -41,6 +41,13 @@ enum MessageDirection {
   INTERNAL
 }
 
+enum MessageProcessingStatus {
+  RECEIVED
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
 model User {
   id           String       @id @default(cuid())
   name         String
@@ -138,20 +145,22 @@ model Conversation {
   updatedAt     DateTime           @updatedAt
 
   @@unique([agencyId, id])
+  @@unique([agencyId, customerPhone])
   @@index([agencyId, status, lastMessageAt(sort: Desc)])
-  @@index([agencyId, customerPhone])
 }
 
 model Message {
-  id                String           @id @default(cuid())
-  agencyId          String
-  agency            Agency           @relation(fields: [agencyId], references: [id], onDelete: Cascade)
-  conversationId    String
-  conversation      Conversation     @relation(fields: [agencyId, conversationId], references: [agencyId, id], onDelete: Cascade)
-  externalMessageId String?
-  direction         MessageDirection
-  content           String
-  createdAt         DateTime         @default(now())
+  id                  String                  @id @default(cuid())
+  agencyId            String
+  agency              Agency                  @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  conversationId      String
+  conversation        Conversation            @relation(fields: [agencyId, conversationId], references: [agencyId, id], onDelete: Cascade)
+  externalMessageId   String?
+  direction           MessageDirection
+  content             String
+  processingStatus    MessageProcessingStatus @default(RECEIVED)
+  processingStartedAt DateTime?
+  createdAt           DateTime                @default(now())
 
   @@unique([agencyId, externalMessageId])
   @@index([agencyId, conversationId, createdAt])
@@ -185,13 +194,15 @@ model FAQ {
 }
 
 model BotSettings {
-  id               String   @id @default(cuid())
-  agencyId         String   @unique
-  agency           Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
-  instructions     String   @default("")
-  openingHours     Json?
-  handoffMessage   String   @default("Vou encaminhar você para um consultor da nossa equipe.")
-  autoReplyEnabled Boolean  @default(false)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                           String   @id @default(cuid())
+  agencyId                     String   @unique
+  agency                       Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  instructions                 String   @default("")
+  openingHours                 Json?
+  handoffMessage               String   @default("Vou encaminhar você para um consultor da nossa equipe.")
+  autoReplyEnabled             Boolean  @default(false)
+  whatsappPhoneNumberId        String?  @unique
+  whatsappAccessTokenEncrypted String?
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
 }
