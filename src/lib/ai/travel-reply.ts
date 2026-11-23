@@ -55,6 +55,30 @@ const jsonSchema = {
 
 export type TravelReply = z.infer<typeof travelReplySchema>;
 
+function getChatCompletionsUrl() {
+  const baseUrl = process.env.OPENAI_BASE_URL?.trim() || "https://api.openai.com/v1";
+  let url: URL;
+  try {
+    url = new URL(baseUrl);
+  } catch {
+    throw new Error("OPENAI_BASE_URL must be a valid URL.");
+  }
+
+  const isLocalHttp =
+    process.env.NODE_ENV !== "production" &&
+    url.protocol === "http:" &&
+    ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  if (url.protocol !== "https:" && !isLocalHttp) {
+    throw new Error("OPENAI_BASE_URL must use HTTPS outside local development.");
+  }
+  if (url.username || url.password || url.search || url.hash) {
+    throw new Error("OPENAI_BASE_URL must not contain credentials, query parameters, or a fragment.");
+  }
+
+  url.pathname = `${url.pathname.replace(/\/+$/, "")}/chat/completions`;
+  return url.toString();
+}
+
 export async function generateTravelReply({
   instructions,
   history,
@@ -75,12 +99,13 @@ export async function generateTravelReply({
     "Use somente os serviços, perguntas frequentes e instruções fornecidos. Se não souber, diga que um consultor confirmará.",
     "Faça no máximo uma pergunta clara por resposta. Preencha a qualificação apenas com dados que a pessoa informou; use null para o que ainda não sabe.",
     "Classifique o interesse como AIR, EXCURSION, RECEPTIVE ou UNDEFINED. Marque requestHuman como true se a pessoa pedir atendimento humano ou se a situação exigir um consultor.",
+    "Retorne somente um objeto JSON válido com as chaves reply, segment, qualification, summary e requestHuman, sem bloco Markdown.",
     `Instruções da agência: ${instructions || "Nenhuma instrução adicional."}`,
     `Serviços aprovados: ${JSON.stringify(services)}`,
     `Perguntas frequentes aprovadas: ${JSON.stringify(faqs)}`,
   ].join("\n\n");
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  const response = await fetch(getChatCompletionsUrl(), {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,

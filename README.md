@@ -63,7 +63,9 @@ O cadastro público ainda não tem verificação de e-mail nem proteção distri
 O piloto usa a API oficial da Meta e aceita mensagens de texto. Não conecte um número pessoal como se fosse uma credencial: comece com o número de teste e um destinatário de teste autorizado no painel Meta.
 
 1. No projeto Vercel, configure em **Settings → Environment Variables**:
-   - `OPENAI_API_KEY`: chave do projeto OpenAI.
+   - `OPENAI_API_KEY`: chave do provedor OpenAI-compatible.
+   - `OPENAI_BASE_URL`: endpoint-base HTTPS; para OpenAI, `https://api.openai.com/v1`.
+   - `OPENAI_MODEL`: modelo aceito pelo provedor (o padrão é `gpt-4o-mini`).
    - `WHATSAPP_APP_SECRET`: App Secret do app Meta.
    - `WHATSAPP_VERIFY_TOKEN`: valor aleatório criado por você; use o mesmo na configuração do webhook da Meta.
    - `WHATSAPP_TOKEN_ENCRYPTION_KEY`: chave de 32 bytes em Base64, gerada com `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`.
@@ -73,7 +75,9 @@ O piloto usa a API oficial da Meta e aceita mensagens de texto. Não conecte um 
 4. No app Meta, configure o callback `https://chatboot-mvp.vercel.app/api/whatsapp/webhook`, informe o mesmo `WHATSAPP_VERIFY_TOKEN` e assine o campo `messages`.
 5. Autorize seu WhatsApp como destinatário de teste, envie uma mensagem para o número de teste e só então habilite as respostas automáticas. Tokens temporários da Meta podem expirar; para uso contínuo, crie um token apropriado no Business Manager.
 
-As variáveis do app Meta e da OpenAI ficam no servidor; o token da agência é criptografado antes de ir ao banco. O webhook rejeita assinaturas inválidas, deduplica IDs da Meta e permite reprocessar mensagens que falharam. O processamento ainda é síncrono e limitado a texto; antes de aumentar tráfego ou atender dezenas de agências, adicione fila/outbox, métricas e testes de carga. As mensagens enviadas à OpenAI são dados pessoais processados por terceiro; valide consentimento, retenção e LGPD antes de usar conversas reais.
+Para usar a API compatível da Gemini, defina `OPENAI_BASE_URL` como `https://generativelanguage.googleapis.com/v1beta/openai` e `OPENAI_MODEL` para um modelo habilitado na sua conta. A cota gratuita varia por modelo e projeto; confira os limites atuais no Google AI Studio. O endpoint local da FreeLLMAPI (`127.0.0.1`) não é acessível pela Vercel.
+
+As variáveis do app Meta e do provedor de IA ficam no servidor; o token da agência é criptografado antes de ir ao banco. O webhook rejeita assinaturas inválidas, deduplica IDs da Meta e permite reprocessar mensagens que falharam. O processamento ainda é síncrono e limitado a texto; antes de aumentar tráfego ou atender dezenas de agências, adicione fila/outbox, métricas e testes de carga. As mensagens enviadas ao provedor de IA são dados pessoais processados por terceiro; valide consentimento, retenção e LGPD antes de usar conversas reais.
 
 ## Próximas etapas
 
